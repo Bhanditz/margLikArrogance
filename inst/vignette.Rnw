@@ -1,0 +1,505 @@
+<<SourceR,results=hide,echo=FALSE>>=
+library(favir)
+InitPaper()
+@ 
+
+<<LatexPrelude,echo=FALSE,results=tex>>=
+IncludePrelude("Marginal Likelihood Computation with the \\texttt{margLikArrogance} package", "Benedict Escoto", header.lines="\\usepackage{amssymb,amsmath}
+\\newcommand{\\bx}{\\boldsymbol x}
+\\newcommand{\\btheta}{\\boldsymbol \\theta}",
+               include.logo=FALSE)
+@ 
+
+\begin{abstract}
+  The purpose of the \texttt{margLikArrogance} package is to compute
+  marginal likelihoods from the posterior parameter distributions of
+  Bayesian models using ``arrogance sampling''.  These marginal
+  likelihoods can then be used to compare how strongly the evidence
+  supports competing theories.  This vignette treats a simple Bayesian
+  model comparison problem in detail from start to finish and shows
+  how to apply the \texttt{margLikArrogance} package.
+\end{abstract}
+
+
+\section{Introduction}
+
+Model choice is theoretically simple in Bayesian statistics.  Given
+two competing models or theories, $T_1$ and $T_2$, and a vector of
+observations $\bx$, a Bayesian conditionalizes on $\bx$ and finds via
+Bayes's Theorem that
+
+\begin{equation} \label{bayes factor}
+  \frac{p(T_1|\bx)}{p(T_2|\bx)} = \frac{p(\bx|T_1)}{p(\bx|T_2)} \frac{p(T_1)}{p(T_2)}.
+  \end{equation}
+
+The quantity $\frac{p(\bx|T_1)}{p(\bx|T_2)}$ is called a \emph{Bayes
+  factor} and the quantities $p(\bx|T_1)$ and $p(\bx|T_2)$ are called the
+theories' \emph{marginal likelihoods}.  Once we compute either of
+these quantities we know the strength of evidence $\bx$ in support of
+theory $T_1$ vs $T_2$.
+
+The problem is that the marginal likelihoods are hard to compute.
+They are called marginal likelihoods because typically Bayesian models
+have several parameters necessary to compute the models' likelihood on
+any evidence.  If $\btheta_i$ are parameters for $T_i$, then
+
+\begin{equation} \label{main integral}
+  p(\bx|T_i) = \int p(\bx|\btheta_i, T_i) p(\btheta_i|T_i) \, d\btheta_i
+\end{equation}
+
+\noindent and the marginal likelihood computation requires evaluating an
+integral.  Typically this integral has no analytic solution and must
+be solved numerically.  Even numerical approximation is often
+difficult because $p(\bx|\btheta_i, T_i)$ is often very
+``spiky''---close to 0 except in a small region where it is very large.
+
+\subsection{MCMC and Arrogance Sampling}
+
+The purpose of the \texttt{margLikArrogance} package is to help
+compute integral \eqref{main integral}.  The first step is to sample
+from the posterior parameter distributions $\btheta_i|\bx, T_i$.  This
+can be done using a markov chain monte carlo (MCMC) technique such as
+Gibbs sampling.  Sampling from the posterior parameter distribution is
+a common move in Bayesian statistics, frequently done even if theory
+choice is not an issue.
+
+Second, the likelihoods $p(x|\btheta_i, T_i)$ are computed for each
+$\btheta_i$ in the posterior parameter sample.
+
+Third, the \texttt{margLikArrogance} package processes the posterior
+parameter samples and the likelihoods and returns $p(\bx|\btheta_i,
+T_i)$.  These can then be plugged into formulas like \eqref{bayes
+  factor} to update probabilities.  The two basic inputs required for
+the package to estimate the marginal likelihood of a theory $T_i$ are:
+
+\begin{enumerate}
+ \item Samples from the posterior distribution of parameters
+   $\btheta_i|\bx, T_i$, denoted as $\btheta_{j,i}$.
+ \item At each point $\btheta_{j,i}$, the log-likelihood of the prior
+   probability times the likelihood of the evidence: $\mbox{log}(p(\bx |
+   \btheta_{j,i}, T_i)p(\btheta_{j,i}|T_i)) = \mbox{log}\, p(\bx \wedge \btheta_{j,i}|T_i)$.
+\end{enumerate}
+
+
+The \texttt{margLikArrogance} packge uses a monte carlo technique
+known as non-parametric importance sampling, or arrogance sampling.
+Basically a kind of histogram is built from the posterior parameter
+samples and used for importance sampling.  The rest of this vignette
+considers three simple theories in detail and shows how to use the
+\texttt{margLikArrogance} package to decide between them in light of
+some data.  Technical details can be found in XXXX.
+
+That paper also explains the advantages and disadvantages of this
+technique versus other methods such as simple monte carlo integration,
+parametrized importance sampling, path integration, the standard
+harmonic mean estimator, etc.  To summarize, you may find this package
+useful if
+
+\begin{itemize}
+  \item you already have the posterior parameter samples
+    $\btheta_{j,i}$ available, probably through an MCMC method;
+  \item the quantity $p(\bx | \btheta_{j,i}, T_i)p(\btheta_{j,i}|T_i)$
+    is easy to compute;
+  \item $p(\btheta_{j,i}|\bx, T_i) > 0$ everywhere, or at least near
+    the samples $\btheta_{j,i}$;
+  \item and the dimensionality of the space $\btheta_i$ is not too
+    large, say around 10 or less (or perhaps more depending on the
+    desired accuracy).
+\end{itemize}
+
+\subsection{Compared to the Harmonic Mean Estimator}
+
+The harmonic mean estimator (HME) is similar to what the
+\texttt{margLikArrogance} package does: they both approximate a
+theory's marginal likelihood given samples from that theory's
+posterior parameter distribution.  There are two main differences:
+
+\begin{enumerate}
+  \item This package is supposed to actually give the correct answer.
+    \item The HME requires the likelihood $p(\bx | \btheta_{j,i},
+      T_i)$ at each point, while this package requires the value
+      $p(\bx \wedge \btheta_{j,i} | T_i)$.
+\end{enumerate}
+
+\noindent
+See
+\texttt{http://http://radfordneal.wordpress.com/2008/08/17/the-harmonic-mean-of-the-likelihood-worst-monte-carlo-method-ever}
+for a nice explanation of why HME doesn't work.  Because of the
+similarity in requirements to the HME, in many cases the arrogance
+sampling described here may be used as a convenient but superior
+replacement for the HME.
+
+
+\section{Example Theories and Evidence}
+
+Our simpleminded task is to measure people's heights and choose
+between three theories of how tall people are.  Each theory is a
+Bayesian hierarchical model:
+
+\begin{description}
+  \item[Theory 1:] People's heights are normally distributed with
+    mean $\mu$ and standard deviation 0.5.
+    \begin{itemize}
+      \item $\mu$ is normally distributed with mean 5 and standard
+        deviation 0.1.
+    \end{itemize}
+  \item[Theory 2:] Heights are lognormally distributed with mean log
+    $\mu$ and standard deviation log of 0.1.
+    \begin{itemize}
+    \item $\mu$ is normally distributed with mean 1.6 and standard
+      deviation 0.02.
+    \end{itemize}
+  \item[Theory 3:] Heights are normally distributed with mean $\mu$
+    and precision $\tau$ (precision is the reciprocal of variance).
+    \begin{itemize}
+    \item $\mu$ is normally distributed with mean 5 and standard
+      deviation 0.1.
+    \item $\tau$ is gamma distributed with mean 4 and standard
+      deviation 1.
+    \item $\mu$ and $\tau$ are independent.
+    \end{itemize}
+\end{description}
+
+\noindent For each, the hyperparameters are shared by all people.  For
+instance, in theory 1, if $\mu$ is 6.1, then the height distribution
+of everyone has a mean of 6.1.
+
+<<codeSample>>=
+t1.mean.mean <- 5
+t1.mean.sd <- 0.1
+t1.sd <- 0.5
+
+t2.mu.mean <- 1.6
+t2.mu.sd <- .02
+t2.sigma <- .1
+
+t3.mean.mean <- 5
+t3.mean.sd <- .1
+t3.prec.rate <- 4 / 1^2
+t3.prec.shape <- 4 * t3.prec.rate
+
+set.seed(1)
+t1.prior.samples <- rnorm(1000,
+                          mean=rnorm(1000, mean=t1.mean.mean, sd=t1.mean.sd),
+                          sd=t1.sd)
+t2.prior.samples <- exp(rnorm(1000,
+                              rnorm(1000, mean=t2.mu.mean, sd=t2.mu.sd),
+                              t2.sigma))
+t3.prior.mu.samples <- rnorm(1000, mean=t3.mean.mean, sd=t3.mean.sd)
+t3.prior.prec.samples <- rgamma(1000, shape=t3.prec.shape, rate=t3.prec.rate)
+t3.prior.samples <- rnorm(1000, mean=t3.prior.mu.samples,
+                          sd=1 / sqrt(t3.prior.prec.samples))
+p1.df <- data.frame(x=c(t1.prior.samples, t2.prior.samples, t3.prior.samples),
+                    t=c(rep("Theory 1", 1000), rep("Theory 2", 1000),
+                        rep("Theory 3", 1000)))
+p1 <- (ggplot(data=p1.df)
+       + geom_histogram(aes(x=x))
+       + facet_wrap(~ t, ncol=1)
+       + labs(x="Height", y="Count"))
+@ 
+
+<<samplePlot,results=tex,echo=FALSE>>=
+IncludeGraph(p1, caption="Prior Marginal Distributions", label="prior")
+@ 
+
+The R code above defined the initial parameters and samples 1000
+heights from each prior marginal distribution.  These samples are then
+used to plot a histogram shown in figure \ref{prior}.  As you can see,
+the marginal distributions look somewhat similar.
+
+\clearpage
+
+\subsection{Example Data}
+
+To continue the sample, we now sample the heights of 100 people.  The
+results are shown in figure \ref{height samples}.  This is the
+evidence we will use to compare the three theories.
+
+<<heightsTable,results=tex,echo=FALSE>>=
+set.seed(1)
+n <- 60
+samples <- rnorm(n, mean=5.1, sd=0.7)
+sample.table.df <- data.frame(p1=1:15, h1=samples[1:15],
+                              p2=16:30, h2=samples[16:30],
+                              p3=31:45, h3=samples[31:45],
+                              p4=46:60, h4=samples[46:60])
+sample.fdf <- FavirDF(sample.table.df,
+                      label="height samples",
+                      caption="Sampled Heights")
+FieldHeadings(sample.fdf) <- c(p1="Person \\#", p2="Person \\#",
+                               p3="Person \\#", p4="Person \\#",
+                               h1="Height", h2="Height",
+                               h3="Height", h4="Height")
+FieldFormatters(sample.fdf) <- list(h1=formatters$flat2, h2=formatters$flat2,
+                                    h3=formatters$flat2, h4=formatters$flat2)
+print(sample.fdf)
+@
+
+\section{Sampling From the Posterior}
+
+The next step is to sample from the posterior of each distribution's
+parameters.  1000 samples will be taken from each posterior
+distribution.
+
+This is somewhat trivial for theories 1 and 2 because they are
+Bayesian conjugates.  In fact, the marginal likelihood is analytically
+soluable so there is no need to use the \texttt{margLikArrogance}
+package.  They were chosen as an example so the output of the package
+can be compared to the exact answer.  The code that computes them is
+shown below.
+
+<<conjugateCode>>=
+UpdateMean <- function(mean.mean, mean.sd, sd, x) {
+  # Return posterior mean and standard deviation of normal mean conjugate
+  post.sd <- sqrt(1 / (1 / mean.sd^2 + length(x) / sd^2))
+  return(c(mean=(mean.mean / mean.sd^2 + sum(x) / sd^2) * post.sd^2,
+           sd=post.sd))
+}
+
+set.seed(1)
+t1.post.param <- UpdateMean(t1.mean.mean, t1.mean.sd, t1.sd, samples)
+t1.post.samples <- rnorm(1000, mean=t1.post.param["mean"],
+                         sd=t1.post.param["sd"])
+
+t2.post.param <- UpdateMean(t2.mu.mean, t2.mu.sd, t2.sigma, log(samples))
+t2.post.samples <- rnorm(1000, mean=t2.post.param["mean"],
+                         sd=t2.post.param["sd"])
+@ 
+
+For theory 3 we will sample from the posterior by taking advantage of
+the semi-conjugacy of our model and coding a Gibbs sampler.  The code
+is shown below.
+
+<<gibbsSampler>>=
+UpdatePrecision <- function(prec.shape, prec.rate, mean, x) {
+  # Return posterior shape and rate of inverse gamma precision
+  return(c(shape=prec.shape + length(x) / 2,
+           rate=prec.rate + sum((x - mean)^2) / 2))
+}
+
+t3.mean.post.samples <- rep(NA, 1010)
+t3.sd.post.samples <- rep(NA, 1010)
+
+t3.mean.post.samples[1] <- 5
+t3.sd.post.samples[1] <- 0.5
+
+set.seed(1)
+for (i in 2:1010) {
+  mu.params <- UpdateMean(t3.mean.mean, t3.mean.sd, t3.sd.post.samples[i-1],
+                          samples)
+  t3.mean.post.samples[i] <- rnorm(1, mu.params["mean"], mu.params["sd"])
+  prec.params <- UpdatePrecision(t3.prec.shape, t3.prec.rate,
+                                 t3.mean.post.samples[i-1], samples)
+  t3.sd.post.samples[i] <- sqrt(1/rgamma(1, shape=prec.params["shape"],
+                                         rate=prec.params["rate"]))
+}
+t3.post.samples <- cbind(t3.mean.post.samples, t3.sd.post.samples)[11:1010, ]
+colnames(t3.post.samples) <- c("mean", "sd")
+@ 
+
+\noindent This chain should be checked for tuning, convergence, etc.,
+but here we will just assume we have obtained the posterior samples we
+wanted.  The prior and posterior parameter distributions are shown in
+figure \ref{parameter comparison}.
+
+<<paramComparison,results=tex,echo=FALSE>>=
+param.comp.df <- data.frame(mean=c(t3.prior.mu.samples,
+                                   t3.post.samples[, "mean"]),
+                            sd=c(1/sqrt(t3.prior.prec.samples),
+                                 t3.post.samples[, "sd"]),
+                            type=c(rep("Prior", 1000), rep("Posterior", 1000)))
+pcomp.plot <- (ggplot(data=param.comp.df)
+               + geom_point(aes(x=mean, y=sd), alpha=0.4)
+               + facet_wrap(~ type, ncol=1)
+               + labs(x="Mean", y="Standard Deviation"))
+IncludeGraph(pcomp.plot, caption="Theory 3 Prior vs Posterior Parameters",
+             label="parameter comparison")
+@ 
+
+\subsection{Sampled Likelihoods}
+
+We have the sampled posterio parameter distributions for each theory;
+the next step is compute the value $\mbox{log}\,p(\bx \wedge
+\btheta_{j,i} | T_i) = \mbox{log}(p(\bx | \btheta_{j,i},
+T_i)p(\btheta_{j,i}|T_i))$ for each point $\btheta_{j,i}$.  For theory
+1 we have:
+
+<<T1LogLik>>=
+T1OneLik <- function(theta) {
+  # Compute log likelihood for one sample from T1's posterior param dist
+  ll <- sum(dnorm(samples, mean=theta, sd=t1.sd, log=TRUE))
+  return(ll + dnorm(theta, mean=t1.mean.mean, sd=t1.mean.sd, log=TRUE))
+}
+t1.ll <- sapply(t1.post.samples, T1OneLik)
+@ 
+
+\noindent For theory 2:
+
+<<T2LogLik>>=
+T2OneLik <- function(theta) {
+  # Compute log likelihood for one sample from T2's posterior param dist
+  ll <- sum(dlnorm(samples, meanlog=theta, sdlog=t2.sigma, log=TRUE))
+  return(ll + dnorm(theta, mean=t2.mu.mean, sd=t2.mu.sd, log=TRUE))
+}
+t2.ll <- sapply(t2.post.samples, T2OneLik)
+@ 
+
+\noindent Finally, for theory 3 we have:
+
+<<T3LogLik>>=
+T3OneLik <- function(theta) {
+  # Compute log likelihood for one sample from T3's posterior param dist
+  ll <- sum(dnorm(samples, mean=theta[1], sd=theta[2], log=TRUE))
+  param.ll <- (dnorm(theta[1], mean=t3.mean.mean, sd=t3.mean.sd, log=TRUE)
+               + dgamma(1 / theta[2]^2, shape=t3.prec.shape,
+                        rate=t3.prec.rate, log=TRUE))
+  return(ll + param.ll)
+}
+t3.ll <- apply(t3.post.samples, 1, T3OneLik)
+@ 
+
+\section{Using the Package and Comparing the Theories}
+\label{Compute}
+
+We can now apply the \texttt{margLikArrogance} package to compute each
+theory's marginal likelihood.  The following are the only three lines
+in this example that actually use the package!
+
+<<ComputeLikelihoods>>=
+library(margLikArrogance)
+t1.margll <- MarginalLikelihood(matrix(t1.post.samples, ncol=1), t1.ll)
+t2.margll <- MarginalLikelihood(matrix(t2.post.samples, ncol=1), t2.ll)
+t3.margll <- MarginalLikelihood(t3.post.samples, t3.ll,
+                                bounds=matrix(c(-Inf, Inf, 0.1, Inf), nrow=2))
+@ 
+
+\noindent The results are summarized in figure \ref{results}.  The
+posterior probability shown assumes that each theory had probability
+one-third before the data was observed.  Note that the \texttt{bounds}
+argument was used for theory 3, specifying that the standard deviation
+cannot be negative.
+
+<<results,results=tex,echo=FALSE>>=
+conf.str <- c(paste(formatC(t1.margll$conf.interval, digits=1, format="f"),
+                    collapse=" to "),
+              paste(formatC(t2.margll$conf.interval, digits=1, format="f"),
+                    collapse=" to "),
+              paste(formatC(t3.margll$conf.interval, digits=1, format="f"),
+                    collapse=" to "))
+
+t1.actual.mll <- (t1.ll[1]
+                  - dnorm(t1.post.samples[1], mean=t1.post.param["mean"],
+                          sd=t1.post.param["sd"], log=TRUE))
+t2.actual.mll <- (t2.ll[2]
+                  - dnorm(t2.post.samples[2], mean=t2.post.param["mean"],
+                          sd=t2.post.param["sd"], log=TRUE))
+
+result.df <- data.frame(theory=1:3,
+                        mll.est=c(t1.margll$mll, t2.margll$mll, t3.margll$mll),
+                        conf=conf.str,
+                        mll.actual=c(t1.actual.mll, t2.actual.mll, NA))
+avg.ll <- sum(exp(result.df$mll.est)) / 3
+result.df$post.prob <- exp(result.df$mll.est) / avg.ll / 3
+
+result.fdf <- FavirDF(result.df,
+                      label="results", caption="Arrogance Sampling Results")
+FieldHeadings(result.fdf) <- c(theory="Theory",
+                               mll.est="Estimated Marg LL",
+                               conf="Confidence Interval",
+                               mll.actual="Actual MLL (Analytic)",
+                               post.prob="Posterior Probability")
+FieldFormatters(result.fdf) <- list(theory=formatters$flat0,
+                                    mll.est=formatters$flat1,
+                                    mll.actual=formatters$flat1,
+                                    post.prob=formatters$flat2)
+print(result.fdf)
+@ 
+
+\subsection{Qualitative Comparisons}
+
+Instead of computing posterior probabilities directly, we can
+reference the table from Kass and Raftery (figure \ref{guidelines})
+when interpreting the results in figure \ref{results}.  According to
+that, the sample data is positive evidence for theory 1 versus theory
+3.  The data does not help us much to decide between theories 1 and 3
+or theories 2 and 3.
+
+<<guidelines,results=tex,echo=FALSE>>=
+guidelines.df <- data.frame(diff=c("0 to 1", "1 to 3", "3 to 5", "> 5"),
+                            desc=c("Inconsequential", "Positive", "Strong",
+                                   "Very Strong"))
+guidelines.fdf <- FavirDF(guidelines.df, label="guidelines",
+                          caption="Kass and Raftery's Guidelines")
+FieldHeadings(guidelines.fdf) <- c(diff="LL Difference",
+                                   desc="Strength of Evidence")
+print(guidelines.fdf)
+@ 
+
+
+\section{A More Challenging Example}
+
+The \texttt{margLikArrogance} package requires samples $\btheta_{j,i}$
+from the posterior parameter distribution $\btheta_i|\bx,T_i$ and the
+value of $\mbox{log}\, p(\bx \wedge \btheta_{j,i}|T_i)$ at each point.
+Because 
+
+\[ p(\btheta_i|\bx, T_i) = \frac{p(\bx \wedge \btheta_i| T_i)}{p(\bx|T_i)},\]
+
+\noindent computing the marginal likelihood $p(\bx,T_i)$ is equivalent
+to computing the normalizing constant for an unknown density
+$p(\btheta_i|\bx,T_i)$, given samples from $\btheta_i|\bx,T_i$ and the
+unnormalized density $p(\bx \wedge \btheta_i| T_i)$ at each point.
+
+Thus we can test the algorithm by suppling samples from an arbitrary
+density along with densities multiplied by an arbitrary constant.  In
+this section, we try the algorithm on a 50/50 mixture of two
+15-dimensional normal distributions.  The first has mean at
+\[ \mu_1 = (1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0). \]
+The second has mean at $\mu_2 = 10^6 \mu_1$.  Both will have the
+identity covariance matrix.  The code below generates $n = 100000$
+samples from this distribution are generated below.
+
+<<Ex2>>=
+library(mvtnorm)
+mvn.n <- 10^5
+mvn.mu1 <- c(1, rep(0, 14))
+mvn.mu2 <- 10^6 * mvn.mu1
+set.seed(1)
+mvn.theta <- rbind(rmvnorm(mvn.n/2, mean=mvn.mu1),
+                   rmvnorm(mvn.n/2, mean=mvn.mu2))
+@ 
+
+The log likelihood of the samples are computed below.  An arbitrary
+constant 1000 is added to each log-likelihood (equivalent to scaling
+each likelihood by a factor of $e^{1000}$).  This means that the
+correct marginal log-likelihood is 1000.
+
+<<Ex2ll>>=
+mvn.ll <- (1000 + log(dmvnorm(mvn.theta, mean=mvn.mu1) / 2
+                      + dmvnorm(mvn.theta, mean=mvn.mu2) / 2))
+@ 
+
+We can then apply the algorithm the same way as in section
+\ref{Compute}.
+
+<<Ex2answer>>=
+mvn.mll <- MarginalLikelihood(mvn.theta, mvn.ll)
+mvn.mll$mll
+mvn.mll$conf.interval
+@ 
+
+The algorithm returns a reasonable approximation of the correct
+log-likelihood 1000, and has a reasonably small confidence interval.
+
+\section{Conclusion}
+
+In this vignette we have applied the \texttt{margLikArrogance} package
+to two example problems.  The first was detailed and involved choosing
+between three models of people's height distributions.  The second was
+abstract but quick, and involved a bimodal 15-dimensional posterior
+parameter distribution.  In applications such as these, I hope the
+\texttt{margLikArrogance} package can provide an easy and useful way
+to approximate marginal likelihoods.
+
+
+\end{document}
