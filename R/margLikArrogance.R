@@ -98,8 +98,8 @@
   max.coords <- apply(coords, 2, max)
   min.coords <- apply(coords, 2, min)
   
-  result <- rbind(apply(coords, 2, min) * hist$width,
-                  (apply(coords, 2, max) + 1) * hist$width)
+  result <- rbind(apply(coords, 2, min) * hist$width + hist$center,
+                  (apply(coords, 2, max) + 1) * hist$width + hist$center)
   rownames(result) <- c("min", "max")
   return(result)
 }

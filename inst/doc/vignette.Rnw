@@ -10,6 +10,7 @@ IncludePrelude("Marginal Likelihood Computation with the \\texttt{margLikArrogan
                include.logo=FALSE)
 @ 
 
+%\VignetteIndexEntry{Usage example in a simple Bayesian model choice problem}
 \begin{abstract}
   The purpose of the \texttt{margLikArrogance} package is to compute
   marginal likelihoods from the posterior parameter distributions of
@@ -193,7 +194,7 @@ p1.df <- data.frame(x=c(t1.prior.samples, t2.prior.samples, t3.prior.samples),
                     t=c(rep("Theory 1", 1000), rep("Theory 2", 1000),
                         rep("Theory 3", 1000)))
 p1 <- (ggplot(data=p1.df)
-       + geom_histogram(aes(x=x))
+       + geom_histogram(aes(x=x), binwidth=.2)
        + facet_wrap(~ t, ncol=1)
        + labs(x="Height", y="Count"))
 @ 
@@ -307,7 +308,8 @@ param.comp.df <- data.frame(mean=c(t3.prior.mu.samples,
                                    t3.post.samples[, "mean"]),
                             sd=c(1/sqrt(t3.prior.prec.samples),
                                  t3.post.samples[, "sd"]),
-                            type=c(rep("Prior", 1000), rep("Posterior", 1000)))
+                            type=c(rep("Prior", 1000), rep("Posterior", 1000)),
+                            stringsAsFactors=FALSE, check.rows=TRUE)
 pcomp.plot <- (ggplot(data=param.comp.df)
                + geom_point(aes(x=mean, y=sd), alpha=0.4)
                + facet_wrap(~ type, ncol=1)

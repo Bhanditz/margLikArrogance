@@ -1,20 +1,94 @@
-<<SourceR,results=hide,echo=FALSE>>=
-library(favir)
-InitPaper()
-@ 
 
-<<LatexPrelude,echo=FALSE,results=tex>>=
-IncludePrelude("Marginal Likelihood Estimation via Arrogance Sampling",
-               "Benedict Escoto", header.lines="\\usepackage{amssymb,amsmath}
-\\newcommand{\\bx}{\\boldsymbol x}
-\\newcommand{\\btheta}{\\boldsymbol \\theta}
-\\newcommand{\\myvar}{\\mbox{Var}}
-\\newcommand{\\myexp}{\\mbox{E}}
-\\newcommand{\\norm}[1]{\\lVert#1\\rVert}
-",
-               include.logo=FALSE)
-@ 
+\documentclass[letterpaper,12pt]{article}
+\usepackage[hmargin=1in,bmargin=1.5in,tmargin=1.2in]{geometry}
+\usepackage{Sweave}
+\usepackage{color}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{dcolumn}
+\usepackage{multirow}
+\usepackage{rotating}
+\usepackage{tabularx}
 
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{foreground}
+\pgfsetlayers{background,main,foreground}\definecolor{colorM1}{RGB}{241,235,230}
+ \definecolor{colorM2}{RGB}{211,189,168}
+ \definecolor{colorM3}{RGB}{184,152,124}
+ \definecolor{colorM4}{RGB}{124,108,92}
+ \definecolor{colorM5}{RGB}{88,48,8}
+ \definecolor{colorA1}{RGB}{195,229,208}
+ \definecolor{colorA2}{RGB}{164,229,188}
+ \definecolor{colorA3}{RGB}{86,156,112}
+ \definecolor{colorA4}{RGB}{67,90,75}
+ \definecolor{colorA5}{RGB}{6,64,27}
+ \definecolor{colorB1}{RGB}{192,205,233}
+ \definecolor{colorB2}{RGB}{124,147,197}
+ \definecolor{colorB3}{RGB}{67,93,148}
+ \definecolor{colorB4}{RGB}{53,66,93}
+ \definecolor{colorB5}{RGB}{10,31,75}
+\usepackage{amssymb,amsmath}
+\newcommand{\bx}{\boldsymbol x}
+\newcommand{\btheta}{\boldsymbol \theta}
+\newcommand{\myvar}{\mbox{Var}}
+\newcommand{\myexp}{\mbox{E}}
+\newcommand{\norm}[1]{\lVert#1\rVert}
+%%%%%%%%%%%%%%% End Colors, Start Logo
+
+\newcommand{\favirlogo}{
+\begin{minipage}{3cm}  
+\fontfamily{pcr}\bfseries\Huge
+\begin{tikzpicture}
+  % Length and size definitions
+  \def\logobackwidth{1.3}
+  \def\logobackheight{0.5}
+  \def\logobackradius{0.15}
+  \def\logobackgap{0.03}
+  \def\logotextjitter{0.05}
+
+  % Fill in one background rectangle by tracing clockwise path
+  \def\logopath{(\logobackgap, \logobackgap) -- +(0, \logobackheight)
+                         --  +($(\logobackwidth, \logobackheight)
+                                    -(\logobackradius, 0)$)
+                         arc (90:0:\logobackradius)
+                         --  ++($(0, \logobackradius)-(0, \logobackheight)$)
+                         --  +(\logobackwidth,0)
+                         -- cycle}
+  \fill[colorM1] \logopath;
+  % Then copy it with two reflections and one rotation
+  \fill[colorM1,cm={1,0,0,-1,(0,0)}] \logopath;
+  \fill[colorM1,cm={-1,0,0,1,(0,0)}] \logopath;
+  \fill[colorM1,cm={-1,0,0,-1,(0,0)}] \logopath;
+
+  % Now place letters
+  \node[colorM5] at (-0.78,\logotextjitter) {F};
+  \node[colorM5] at (-0.32,-\logotextjitter) {A};
+  \node[colorM5] at (0.05,\logotextjitter) {V};
+  \node[colorM5] at (0.4,-\logotextjitter) {\LARGE i};
+  \node[colorB3] at (0.79,\logotextjitter) {R};
+  \fill[colorB3] (0.383,0.125) circle (0.06); % dot the i
+\end{tikzpicture}
+\end{minipage}}
+
+%%%%%%%%%%%%%%%%% End Logo, Start Headers and page definition
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\renewcommand{\headrule}{{\color{colorM5}%
+  \hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}}
+\cfoot{\thepage}
+
+%%%%%%%%%%%%%%%% End Headers, Preamble
+
+\begin{document}
+\thispagestyle{plain}\begin{center}{\LARGE Marginal Likelihood Estimation via Arrogance Sampling }\\
+
+\vspace{1em}{\large By  Benedict Escoto }\\
+
+\end{center}
+%\VignetteIndexEntry{Technical paper explaining and justifying method}
 \begin{abstract}
   This paper describes a method for estimating the marginal likelihood
   or Bayes factors of Bayesian models using non-parametric importance
@@ -346,67 +420,7 @@ equal 0 or have about twice the original density at each point, while
 the traditional histogram's density is numerically close to the
 original density.
 
-<<Histograms,results=tex,echo=FALSE>>=
-set.seed(1)
-n <- 50
-samples <- rnorm(n)
-library(margLikArrogance)
-my.bw <- margLikArrogance:::.GetWidth(matrix(samples, ncol=1),
-                                      matrix(rnorm(50), ncol=1),
-                                      dnorm(samples, log=TRUE))
-my.hist <- margLikArrogance:::.PopulateHist(matrix(samples, ncol=1),
-                                            dnorm(samples, log=TRUE),
-                                            my.bw)
-my.hist <- margLikArrogance:::.SetHistNorm(my.hist)
-my.xvals <- my.hist$center + my.bw * -n:n
-my.xvals <- my.xvals[-3 < my.xvals & my.xvals < 3]
-my.xvals <- c(rbind(my.xvals - .0001, my.xvals + .0001))
-my.yvals <- (exp(sapply(my.xvals,
-                        function(x) margLikArrogance:::.Lookup(
-                                    matrix(x, ncol=1), my.hist))
-                 - my.hist$norm))
-
-trad.bw <- 3.5 * n^(-1/3)
-trad.center <- -trad.bw / 2
-trad.xvals <- trad.center + trad.bw * -100:100
-trad.xvals <- trad.xvals[-3 < trad.xvals & trad.xvals < 3]
-trad.xvals <- c(rbind(trad.xvals - .0001, trad.xvals + .0001))
-
-TradHistLookup <- function(point, center=trad.center, bw=trad.bw) {
-  # Return the height of the histogram at the given point
-  lower <- floor((point - center) / bw) * bw + center
-  upper <- lower + bw
-  count <- length(samples[lower <= samples & samples < upper])
-  return(count / n / bw)
-}
-trad.yvals <- sapply(trad.xvals, TradHistLookup)
-
-trad.small.yvals <- sapply(my.xvals,
-                           function(x) TradHistLookup(x, center=my.hist$center,
-                                                      bw=my.hist$width))
-
-xvals <- seq(from=-3, to=3, by=.1)
-plot.df <- rbind(data.frame(x=xvals, y=dnorm(xvals), type="Density"),
-                 data.frame(x=my.xvals, y=my.yvals, type="Arrogant Histogram"),
-                 data.frame(x=my.xvals, y=trad.small.yvals,
-                            type="Traditional Histogram"),
-                 data.frame(x=trad.xvals, y=trad.yvals,
-                            type="Trad Hist (Optimum BW)"))
-
-hist.plot <- (ggplot(data=plot.df)
-              + geom_area(aes(x=x, y=y), color=favir.colors["M5"],
-                          fill=favir.colors["M5"])
-              + facet_grid(type ~ ., scale="free")
-#              + geom_vline(aes(xintercept=samples),
-#                           data=data.frame(samples=samples, type="Density"),
-#                           color=favir.colors["A5"], size=.15)
-              + geom_rug(aes(x=samples), color=favir.colors["A5"], alpha=.5,
-                         size=.5, data=data.frame(samples=samples))
-              + labs(x="x", y="Probability Density"))
-IncludeGraph(hist.plot, caption="Histogram Comparison", label="histograms",
-             width=15.5, height=18)
-@ 
-
+\begin{figure}\begin{center}\includegraphics[width=15.5cm,height=18cm]{favir-graphs/hist_plot.pdf}\caption{Histogram Comparison}\label{histograms}\end{center}\end{figure}
 \subsection{Importance Sampling}
 
 The remaining $n = N - m - 40$ sampled points can be used for

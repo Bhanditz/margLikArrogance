@@ -1,0 +1,15 @@
+751419260aa954499f7abaabaa882bbe *COPYING
+e7d7ece90b6a8a5c17e18d0f2d5758d0 *DESCRIPTION
+aa3d71082cfca522cca874c674e8035b *NAMESPACE
+e6cf77fcf0ff2666b5497dbff9cd0de7 *R/margLikArrogance.R
+420602fd0d35b35104a808a98204ee79 *inst/doc/Makefile
+3008b9dae1b0f780b673024fa3733b98 *inst/doc/favir-graphs/hist_plot.pdf
+5eeb24f4c5e2bc49811a063c4e3dcb42 *inst/doc/favir-graphs/p1.pdf
+b00fc03cb2c93d47d9a19d40c22f2e57 *inst/doc/favir-graphs/pcomp_plot.pdf
+266ee3a96f253a519a528d390d56a91c *inst/doc/margLikArrogance.Rnw
+ccde2b1f4e944e0a9ec5a7aa05437fc6 *inst/doc/margLikArrogance.pdf
+f9e9de18637df75a461280cd2c0802a8 *inst/doc/margLikArrogance.tex
+a017940c8f59abe0c79a56115022ff5c *inst/doc/vignette.Rnw
+887515e442fcf03fca41c336359bfe87 *inst/doc/vignette.pdf
+092ced770f17e9ad0a714b88278150bb *inst/doc/vignette.tex
+b71fb242ac6f9324e82f785db0c6194b *man/MarginalLikelihood.Rd
